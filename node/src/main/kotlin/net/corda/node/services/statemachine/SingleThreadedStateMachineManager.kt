@@ -144,7 +144,7 @@ internal class SingleThreadedStateMachineManager(
         )
 
         val fibers = restoreFlowsFromCheckpoints()
-        flowHospital.startNetworkMapSubscribe()
+        flowHospital.start()
         metrics.register("Flows.InFlight", Gauge<Int> { innerState.flows.size })
 
         setFlowDefaultUncaughtExceptionHandler()
