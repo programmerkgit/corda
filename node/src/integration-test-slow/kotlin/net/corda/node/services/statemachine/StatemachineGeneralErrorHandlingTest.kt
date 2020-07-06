@@ -1,13 +1,13 @@
 package net.corda.node.services.statemachine
 
 import net.corda.client.rpc.CordaRPCClient
+import net.corda.core.flows.PartyNotFoundException
 import net.corda.core.identity.CordaX500Name
 import net.corda.core.messaging.startFlow
 import net.corda.core.utilities.getOrThrow
 import net.corda.core.utilities.seconds
 import net.corda.node.services.api.CheckpointStorage
 import net.corda.node.services.messaging.DeduplicationHandler
-import net.corda.node.services.network.PartyNotFoundException
 import net.corda.node.services.network.PersistentNetworkMapCache
 import net.corda.node.services.statemachine.transitions.TopLevelTransition
 import net.corda.testing.core.ALICE_NAME

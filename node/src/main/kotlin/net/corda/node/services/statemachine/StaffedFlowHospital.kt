@@ -5,6 +5,7 @@ import net.corda.core.flows.FlowException
 import net.corda.core.flows.HospitalizeFlowException
 import net.corda.core.flows.NotaryError
 import net.corda.core.flows.NotaryException
+import net.corda.core.flows.PartyNotFoundException
 import net.corda.core.flows.ReceiveFinalityFlow
 import net.corda.core.flows.ReceiveTransactionFlow
 import net.corda.core.flows.StateMachineRunId
@@ -24,7 +25,6 @@ import net.corda.core.utilities.seconds
 import net.corda.node.services.FinalityHandler
 import net.corda.node.services.api.NetworkMapCacheInternal
 import net.corda.node.services.network.NetworkMapUpdater
-import net.corda.node.services.network.PartyNotFoundException
 import org.hibernate.exception.ConstraintViolationException
 import rx.subjects.PublishSubject
 import java.io.Closeable
@@ -101,7 +101,7 @@ class StaffedFlowHospital(
     }
 
     //when the update completes we start the processing of the nodes
-    private fun checkNodesWaitingForRefresh(@Suppress("UNUSED_PARAMETER") update: Boolean) {
+    private fun checkNodesWaitingForRefresh(@Suppress("UNUSED_PARAMETER") update: Unit) {
         mutex.locked {
             for ((name, flows) in nodesWaitingForNetworkMapRefresh) {
                 if (networkMapCacheInternal.getNodeByLegalName(name) != null) {
@@ -292,7 +292,7 @@ class StaffedFlowHospital(
             EventOutcome(outcome, event, backOffForChronicCondition)
         }
 
-        event?.let {
+        if(event != null) {
             if (backOffForChronicCondition.isZero) {
                 flowFiber.scheduleEvent(event)
             } else {

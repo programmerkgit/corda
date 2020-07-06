@@ -83,8 +83,8 @@ class NetworkMapUpdater(private val networkMapCache: NetworkMapCacheInternal,
     private lateinit var keyManagementService: KeyManagementService
     private lateinit var excludedAutoAcceptNetworkParameters: Set<String>
 
-    private val _updateComplete: PublishSubject<Boolean> = PublishSubject.create()
-    val updateComplete: Observable<Boolean>
+    private val _updateComplete: PublishSubject<Unit> = PublishSubject.create()
+    val updateComplete: Observable<Unit>
         get() = _updateComplete
 
     override fun close() {
@@ -147,7 +147,7 @@ class NetworkMapUpdater(private val networkMapCache: NetworkMapCacheInternal,
                         // Mark the network map cache as ready on a successful poll of the node infos dir if not using
                         // the HTTP network map even if there aren't any node infos
                         networkMapCache.nodeReady.set(null)
-                        _updateComplete.onNext(true)
+                        _updateComplete.onNext(Unit)
                     }
                 }
     }
@@ -243,7 +243,7 @@ class NetworkMapUpdater(private val networkMapCache: NetworkMapCacheInternal,
         // Mark the network map cache as ready on a successful poll of the HTTP network map, even on the odd chance that
         // it's empty
         networkMapCache.nodeReady.set(null)
-        _updateComplete.onNext(true)
+        _updateComplete.onNext(Unit)
         return cacheTimeout
     }
 
