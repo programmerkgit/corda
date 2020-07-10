@@ -23,6 +23,7 @@ import net.corda.testing.driver.driver
 import net.corda.testing.node.User
 import org.junit.Before
 import org.junit.Test
+import org.junit.jupiter.api.BeforeEach
 import java.security.PublicKey
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -31,6 +32,12 @@ class FlowWaitsForNetworkMapRefreshTest {
 
     private val flowDiagnosedWithNetworkMapWaiting = mutableListOf<StateMachineRunId>()
 
+    @BeforeEach
+    fun beforeEach() {
+        flowDiagnosedWithNetworkMapWaiting.clear()
+    }
+
+
     @Before
     fun start() {
         StaffedFlowHospital.onFlowKeptForWaitingForNetworkMapRefresh.add { id, _ -> flowDiagnosedWithNetworkMapWaiting.add(id) }
@@ -38,7 +45,30 @@ class FlowWaitsForNetworkMapRefreshTest {
     }
 
     @Test(timeout = 300_000)
-    fun `flow started with unknown party restarts after network map refresh and dies or finishes depending on the refreshed nodes`() {
+    fun `flow started with unknown party gets exception after network map refresh as it does not contain missing party`() {
+        driver(DriverParameters(
+                notarySpecs = emptyList(),
+                startNodesInProcess = true
+        )) {
+            val user = User(
+                    "mark",
+                    "dadada",
+                    setOf(Permissions.startFlow<HelloExceptionFlow>(), Permissions.startFlow<HelloFlow>())
+            )
+
+            val nodeCHandle = startNode(providedName = ALICE_NAME, rpcUsers = listOf(user)).getOrThrow()
+
+            // Party wasn't added to network map, error propagation should start
+            assertFailsWith<StateTransitionException> {
+                nodeCHandle.rpc.startFlow(::HelloFlow).returnValue.getOrThrow()
+            }
+        }
+
+        assertEquals(flowDiagnosedWithNetworkMapWaiting.size, 1)
+    }
+
+    @Test(timeout = 300_000)
+    fun `flow started with unknown party restarts after network map refresh and successfully finishes execution`() {
         driver(DriverParameters(
                 notarySpecs = emptyList(),
                 startNodesInProcess = true
@@ -51,12 +81,6 @@ class FlowWaitsForNetworkMapRefreshTest {
 
             val nodeAHandle = startNode(providedName = BOB_NAME, rpcUsers = listOf(user)).getOrThrow()
             val nodeBHandle = startNode(providedName = CHARLIE_NAME, rpcUsers = listOf(user)).getOrThrow()
-            val nodeCHandle = startNode(providedName = ALICE_NAME, rpcUsers = listOf(user)).getOrThrow()
-
-            // Party wasn't added to network map, error propagation should start
-            assertFailsWith<StateTransitionException> {
-                nodeCHandle.rpc.startFlow(::HelloFlow).returnValue.getOrThrow()
-            }
 
             // Party "added" after first fail, should retry the flow and succeed
             val result = nodeAHandle.rpc.startFlow(::HelloExceptionFlow, nodeBHandle.nodeInfo.singleIdentity())
@@ -66,7 +90,7 @@ class FlowWaitsForNetworkMapRefreshTest {
             assertEquals("go away", result)
         }
 
-        assertEquals(flowDiagnosedWithNetworkMapWaiting.size, 2)
+        assertEquals(flowDiagnosedWithNetworkMapWaiting.size, 1)
     }
 
     @StartableByRPC
@@ -94,8 +118,8 @@ class FlowWaitsForNetworkMapRefreshTest {
         override fun call(): String {
             if(counter == 0) {
                 counter += 1
-                val pnfe = PartyNotFoundException("Could not find party: $CHARLIE_NAME", CHARLIE_NAME)
-                throw StateTransitionException(pnfe)
+                val partyNotFoundException = PartyNotFoundException("Could not find party: $CHARLIE_NAME", CHARLIE_NAME)
+                throw StateTransitionException(partyNotFoundException)
             }
             val partySession = initiateFlow(p)
             partySession.send("hi there")

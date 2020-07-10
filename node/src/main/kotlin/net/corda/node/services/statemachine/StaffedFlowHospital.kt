@@ -105,9 +105,9 @@ class StaffedFlowHospital(
         mutex.locked {
             for ((name, flows) in nodesWaitingForNetworkMapRefresh) {
                 if (networkMapCacheInternal.getNodeByLegalName(name) != null) {
-                    scheduleEvents(flows, "Party: $name is now in network map, retrying, runID: ", Event.RetryFlowFromSafePoint)
+                    scheduleEvents(flows, "Party: $name is now in network map, retrying flow: ", Event.RetryFlowFromSafePoint)
                 } else {
-                    scheduleEvents(flows, "Party: $name still not in network map, propagating error, runID: ", Event.StartErrorPropagation)
+                    scheduleEvents(flows, "Party: $name still not in network map, propagating error for flow: ", Event.StartErrorPropagation)
                 }
             }
         }
@@ -264,8 +264,6 @@ class StaffedFlowHospital(
                     onFlowDischarged.forEach { hook -> hook.invoke(flowFiber.id, report.by.map{it.toString()}) }
                     EventOutcome(Outcome.DISCHARGE, Event.RetryFlowFromSafePoint, backOff)
                 }
-                //tricky part: the flows which has [WAITING_FOR_NETWORK_MAP_REFRESH] as [Diagnosis] needs to be processed here
-                //marking it with [RetryFlowFromSafePoint] temporarily, but we are actually not going to kick off the events
                 Diagnosis.WAITING_FOR_NETWORK_MAP_REFRESH -> {
                     log.info("Flow error is waiting for networkmap refresh (error was ${report.error.message})")
                     onFlowKeptForWaitingForNetworkMapRefresh.forEach { hook -> hook.invoke(flowFiber.id, report.by.map{it.toString()}) }
@@ -659,13 +657,18 @@ class StaffedFlowHospital(
                              currentState: StateMachineState,
                              newError: Throwable,
                              history: FlowMedicalHistory): Diagnosis {
-            return if(newError is StateTransitionException && newError.mentionsThrowable(PartyNotFoundException::class.java)) {
-                val pnfe = newError.exception as PartyNotFoundException
-                log.info("Adding to waiting for network map refresh: ${pnfe.party}")
-                Diagnosis.WAITING_FOR_NETWORK_MAP_REFRESH
+            val diagnosis: Diagnosis
+            if(newError is StateTransitionException && newError.exception is PartyNotFoundException) {
+                val partyNotFoundException = newError.exception
+                log.info("Adding to waiting for network map refresh: ${partyNotFoundException.party}")
+                diagnosis = Diagnosis.WAITING_FOR_NETWORK_MAP_REFRESH
+            } else if(newError is PartyNotFoundException) {
+                log.info("Adding to waiting for network map refresh: ${newError.party}")
+                diagnosis = Diagnosis.WAITING_FOR_NETWORK_MAP_REFRESH
             } else {
-                Diagnosis.NOT_MY_SPECIALTY
+                diagnosis = Diagnosis.NOT_MY_SPECIALTY
             }
+            return diagnosis
         }
     }
 }

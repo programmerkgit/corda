@@ -200,7 +200,7 @@ abstract class StatemachineErrorHandlingTest {
     }
 
     @InitiatedBy(SendAMessageAndLookIntoHospitalFlow::class)
-    class SendAMessageResponderP(private val session: FlowSession) : FlowLogic<Unit>() {
+    class SendAMessageResponderFlow(private val session: FlowSession) : FlowLogic<Unit>() {
         @Suspendable
         override fun call() {
             session.receive<String>().unwrap { it }

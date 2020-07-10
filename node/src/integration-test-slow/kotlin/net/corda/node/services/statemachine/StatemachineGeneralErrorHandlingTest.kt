@@ -1908,7 +1908,7 @@ class StatemachineGeneralErrorHandlingTest : StatemachineErrorHandlingTest() {
     }
 
     @Test(timeout=300_000)
-    fun `party not found in network map then do recycle`() {
+    fun `flow will retry after network map refresh if party is not found on original call`() {
         startDriver {
             val charlie = createNode(CHARLIE_NAME)
             val alice = createBytemanNode(ALICE_NAME)
